@@ -4,8 +4,20 @@ import PhoneInput from 'react-phone-input-2';
 import { Globe } from 'lucide-react';
 import 'react-phone-input-2/lib/style.css';
 
+interface FormData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  country: string;
+  idDocument: FileList;
+  educationLevel: string;
+  paymentMethod: string;
+  termsAccepted: boolean;
+}
+
 interface UpfrontEnrollmentFormProps {
-  onSubmit: (data: any) => void;
+  onSubmit: (data: FormData) => void;
   onBack: () => void;
 }
 

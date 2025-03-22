@@ -3,27 +3,32 @@ import { Toaster } from './components/ui/Toaster';
 import { lazy, Suspense } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import Layout from './components/Layout';
-import AdminLayout from './components/admin/AdminLayout';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
+import AdminLayout from './components/admin/AdminLayout';
 
 // Lazy load pages
 const HomePage = lazy(() => import('./pages/HomePage'));
 const BootcampsPage = lazy(() => import('./pages/BootcampsPage'));
 const BootcampPage = lazy(() => import('./pages/BootcampPage'));
 const EnrollmentPage = lazy(() => import('./pages/EnrollmentPage'));
+const UserProfile = lazy(() => import('./pages/UserProfile'));
+const EditProfilePage = lazy(() => import('./pages/EditProfilePage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
+const SupabaseTestSimple = lazy(() => import('./pages/SupabaseTestSimple'));
+
+// Admin pages
 const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
 const AdminBootcamps = lazy(() => import('./pages/admin/Bootcamps'));
 const AdminEnrollments = lazy(() => import('./pages/admin/Enrollments'));
 const AdminPayments = lazy(() => import('./pages/admin/Payments'));
-const RegisterPage = lazy(() => import('./pages/RegisterPage'));
-const LoginPage = lazy(() => import('./pages/LoginPage'));
-const UserProfile = lazy(() => import('./pages/UserProfile'));
-const EditProfilePage = lazy(() => import('./pages/EditProfilePage'));
-const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 
 function App() {
   return (
     <AuthProvider>
+      <Toaster />
       <Router>
         <Suspense fallback={
           <div className="min-h-screen flex items-center justify-center bg-[#1A0B2E]">
@@ -42,10 +47,11 @@ function App() {
               <Route path="register" element={<RegisterPage />} />
               <Route path="login" element={<LoginPage />} />
               <Route path="reset-password" element={<ResetPasswordPage />} />
+              <Route path="supabase-test" element={<SupabaseTestSimple />} />
             </Route>
 
-            {/* Admin routes */}
-            <Route path="/admin" element={<AdminLayout />}>
+            {/* Admin routes - Completamente separadas del Layout general */}
+            <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
               <Route index element={<AdminDashboard />} />
               <Route path="bootcamps" element={<AdminBootcamps />} />
               <Route path="enrollments" element={<AdminEnrollments />} />
@@ -53,7 +59,6 @@ function App() {
             </Route>
           </Routes>
         </Suspense>
-        <Toaster />
       </Router>
     </AuthProvider>
   );

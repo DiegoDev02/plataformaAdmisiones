@@ -40,3 +40,18 @@ USING (
 -- Grant necessary permissions
 GRANT SELECT ON auth.users TO authenticated;
 GRANT USAGE ON SCHEMA auth TO authenticated;
+
+/*
+  # Add avatar_url column to profiles table
+
+  1. Changes
+    - Add avatar_url column to profiles table
+    - Make it nullable to support existing records
+    - Column will store public URL to user's avatar
+
+  2. Security
+    - No changes to RLS policies needed as existing profile policies cover the new column
+*/
+
+ALTER TABLE profiles 
+ADD COLUMN IF NOT EXISTS avatar_url text;

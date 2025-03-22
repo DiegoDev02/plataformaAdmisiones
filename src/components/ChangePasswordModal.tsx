@@ -1,6 +1,6 @@
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Lock, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface ChangePasswordModalProps {
@@ -9,45 +9,17 @@ interface ChangePasswordModalProps {
   onSuccess: () => void;
 }
 
-export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: ChangePasswordModalProps) {
-  const [currentPassword, setCurrentPassword] = useState('');
+export default function ChangePasswordModal({
+  isOpen,
+  onClose,
+  onSuccess
+}: ChangePasswordModalProps) {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [passwordStrength, setPasswordStrength] = useState(0);
-
-  const checkPasswordStrength = (password: string) => {
-    let strength = 0;
-    if (password.length >= 8) strength += 1;
-    if (/[A-Z]/.test(password)) strength += 1;
-    if (/[0-9]/.test(password)) strength += 1;
-    if (/[^A-Za-z0-9]/.test(password)) strength += 1;
-    setPasswordStrength(strength);
-  };
-
-  const getStrengthColor = () => {
-    switch (passwordStrength) {
-      case 1: return 'bg-red-500';
-      case 2: return 'bg-yellow-500';
-      case 3: return 'bg-green-400';
-      case 4: return 'bg-green-500';
-      default: return 'bg-gray-200';
-    }
-  };
-
-  const getStrengthText = () => {
-    switch (passwordStrength) {
-      case 1: return 'Débil';
-      case 2: return 'Regular';
-      case 3: return 'Buena';
-      case 4: return 'Fuerte';
-      default: return 'Muy débil';
-    }
-  };
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,26 +29,28 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
       setError('Las contraseñas no coinciden');
       return;
     }
-
-    if (newPassword.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres');
+    
+    if (newPassword.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres');
       return;
     }
-
-    setLoading(true);
-
+    
     try {
-      const { error } = await supabase.auth.updateUser({ 
-        password: newPassword 
+      setLoading(true);
+      
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
       });
-
+      
       if (error) throw error;
-
+      
       onSuccess();
       onClose();
+      setNewPassword('');
+      setConfirmPassword('');
     } catch (error) {
-      console.error('Error updating password:', error);
-      setError('Error al actualizar la contraseña. Por favor intenta de nuevo.');
+      const errorMessage = error as { message: string };
+      setError(errorMessage.message || 'Error al cambiar la contraseña');
     } finally {
       setLoading(false);
     }
@@ -104,58 +78,42 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
               <X className="h-6 w-6" />
             </button>
 
-            <h2 className="text-2xl font-bold text-white mb-6">
+            <h2 className="text-xl font-semibold text-white mb-6">
               Cambiar contraseña
             </h2>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
+            
+            {error && (
+              <div className="bg-red-500/10 text-red-400 px-4 py-2 rounded-lg text-sm mb-4">
+                {error}
+              </div>
+            )}
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-white mb-2">Nueva contraseña</label>
                 <div className="relative">
                   <input
                     type={showNewPassword ? 'text' : 'password'}
                     value={newPassword}
-                    onChange={(e) => {
-                      setNewPassword(e.target.value);
-                      checkPasswordStrength(e.target.value);
-                    }}
-                    className="w-full p-3 bg-[#1A0B2E] text-white rounded-lg border border-[#3D2B79] focus:border-[#6B20FF] focus:outline-none transition-colors pr-10"
-                    placeholder="••••••••"
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full p-3 pl-10 bg-[#1A0B2E] text-white rounded-lg border border-[#3D2B79] focus:border-[#6B20FF] focus:outline-none transition-colors"
+                    placeholder="Nueva contraseña"
                   />
+                  <Lock className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
                   <button
                     type="button"
                     onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white cursor-pointer"
+                    className="absolute right-3 top-3"
                   >
                     {showNewPassword ? (
-                      <EyeOff className="h-5 w-5" />
+                      <EyeOff className="w-5 h-5 text-gray-400" />
                     ) : (
-                      <Eye className="h-5 w-5" />
+                      <Eye className="w-5 h-5 text-gray-400" />
                     )}
                   </button>
                 </div>
-
-                {/* Password Strength Indicator */}
-                <div className="mt-2 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <div className="text-sm text-gray-400">Fortaleza:</div>
-                    <div className={`text-sm font-medium ${
-                      passwordStrength <= 1 ? 'text-red-400' :
-                      passwordStrength === 2 ? 'text-yellow-400' :
-                      'text-green-400'
-                    }`}>
-                      {getStrengthText()}
-                    </div>
-                  </div>
-                  <div className="h-2 bg-[#1A0B2E] rounded-full overflow-hidden">
-                    <div
-                      className={`h-full transition-all duration-300 ${getStrengthColor()}`}
-                      style={{ width: `${(passwordStrength / 4) * 100}%` }}
-                    />
-                  </div>
-                </div>
               </div>
-
+              
               <div>
                 <label className="block text-white mb-2">Confirmar contraseña</label>
                 <div className="relative">
@@ -163,43 +121,38 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full p-3 bg-[#1A0B2E] text-white rounded-lg border border-[#3D2B79] focus:border-[#6B20FF] focus:outline-none transition-colors pr-10"
-                    placeholder="••••••••"
+                    className="w-full p-3 pl-10 bg-[#1A0B2E] text-white rounded-lg border border-[#3D2B79] focus:border-[#6B20FF] focus:outline-none transition-colors"
+                    placeholder="Confirmar contraseña"
                   />
+                  <Lock className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white cursor-pointer"
+                    className="absolute right-3 top-3"
                   >
                     {showConfirmPassword ? (
-                      <EyeOff className="h-5 w-5" />
+                      <EyeOff className="w-5 h-5 text-gray-400" />
                     ) : (
-                      <Eye className="h-5 w-5" />
+                      <Eye className="w-5 h-5 text-gray-400" />
                     )}
                   </button>
                 </div>
               </div>
-
-              {error && (
-                <div className="text-red-400 text-sm bg-red-500/10 p-3 rounded-lg">
-                  {error}
-                </div>
-              )}
-
-              <div className="flex justify-end space-x-4">
+              
+              <div className="flex justify-end mt-6">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 text-white hover:bg-[#1A0B2E] rounded-lg transition-colors"
+                  className="px-4 py-2 text-white mr-2"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-4 py-2 bg-[#6B20FF] text-white rounded-lg hover:bg-[#5910FF] transition-colors disabled:opacity-50"
+                  className="px-4 py-2 bg-[#6B20FF] text-white rounded-lg hover:bg-[#5910FF] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? 'Actualizando...' : 'Actualizar contraseña'}
+                  {loading ? 'Guardando...' : 'Guardar cambios'}
                 </button>
               </div>
             </form>

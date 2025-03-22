@@ -1,58 +1,9 @@
-import { Code2, ArrowRight, BookOpen, Users, Briefcase, ChevronDown, Sparkles, Rocket, Brain } from 'lucide-react';
+import { Code2, ArrowRight, ChevronDown, Sparkles, Rocket, Brain } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
-import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useState, useEffect, useRef } from 'react';
-
-const bootcampTypes = [
-  {
-    id: '1',
-    title: 'Frontend Developer',
-    description: 'Aprende a crear interfaces web modernas y responsivas.',
-    duration: '12 semanas',
-    tag: 'POPULAR',
-    color: 'bg-blue-500',
-    icon: Code2
-  },
-  {
-    id: '2',
-    title: 'Full-Stack Jr.',
-    description: 'Conviértete en un desarrollador capaz de trabajar en frontend y backend.',
-    duration: '20 semanas',
-    tag: 'MÁS COMPLETO',
-    color: 'bg-purple-500',
-    icon: BookOpen
-  },
-  {
-    id: '3',
-    title: 'Data Analyst',
-    description: 'Domina las herramientas necesarias para analizar datos y extraer insights valiosos.',
-    duration: '14 semanas',
-    tag: 'ALTA DEMANDA',
-    color: 'bg-green-500',
-    icon: Users
-  },
-  {
-    id: '4',
-    title: 'Programming Fundamentals',
-    description: 'Aprende los fundamentos de la programación aplicables a cualquier lenguaje.',
-    duration: '8 semanas',
-    tag: 'PRINCIPIANTES',
-    color: 'bg-gray-700',
-    icon: Code2
-  },
-  {
-    id: '5',
-    title: 'Data Fundamentals',
-    description: 'Introduce los conceptos esenciales para trabajar con datos y análisis.',
-    duration: '10 semanas',
-    tag: 'INTRODUCTORIO',
-    color: 'bg-yellow-500',
-    icon: Briefcase
-  }
-];
 
 interface Bootcamp {
   id: string;
@@ -68,79 +19,129 @@ interface Bootcamp {
 }
 
 export default function HomePage() {
-  const { user } = useAuth();
+  const { scrollY } = useScroll();
   const [bootcamps, setBootcamps] = useState<Bootcamp[]>([]);
   const [loading, setLoading] = useState(true);
   const heroRef = useRef(null);
-  const { scrollY } = useScroll();
   const textScale = useTransform(scrollY, [0, 300], [1, 0.7]);
   const textOpacity = useTransform(scrollY, [0, 300], [1, 0]);
   const arrowOpacity = useTransform(scrollY, [0, 100], [1, 0]);
 
-  const [sectionRef, sectionInView] = useInView({
-    triggerOnce: true,
-    threshold: 0.1
-  });
-
-  const [bootcampsRef, bootcampsInView] = useInView({
-    triggerOnce: true,
-    threshold: 0.1
-  });
+  // Referencias para la animación de secciones
+  const [bootcampsRef, bootcampsInView] = useInView({ threshold: 0.1, triggerOnce: true });
+  const [featuresRef, featuresInView] = useInView({ threshold: 0.1, triggerOnce: true });
 
   useEffect(() => {
+    async function fetchBootcamps() {
+      try {
+        setLoading(true);
+        
+        // Consulta a Supabase para obtener bootcamps destacados
+        const { data, error } = await supabase
+          .from('bootcamps')
+          .select('*')
+          // Usamos una cadena para el filtro en lugar de un booleano directo
+          .filter('is_featured', 'eq', 'true')
+          .limit(6);
+          
+        if (error) {
+          console.error('Error fetching bootcamps:', error);
+          return;
+        }
+        
+        // Asegurarse de que los datos se ajusten al tipo Bootcamp
+        const typedData = data as unknown as Bootcamp[];
+        setBootcamps(typedData);
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
     fetchBootcamps();
   }, []);
-
-  const fetchBootcamps = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('bootcamps')
-        .select('*')
-        .eq('is_active', true);
-
-      if (error) throw error;
-      setBootcamps(data || []);
-    } catch (error) {
-      console.error('Error fetching bootcamps:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const features = [
     {
       icon: Sparkles,
-      title: 'Aprendizaje Práctico',
-      description: 'Proyectos reales y casos de estudio de la industria'
+      title: "Currículo actualizado",
+      description: "Nuestros programas están diseñados con las tecnologías más demandadas del mercado."
     },
     {
       icon: Rocket,
-      title: 'Mentoría Personalizada',
-      description: 'Soporte individual para tu desarrollo profesional'
+      title: "Aprendizaje acelerado",
+      description: "Metodología intensiva para maximizar tu tiempo y acelerar tu inserción laboral."
     },
     {
       icon: Brain,
-      title: 'Tecnologías Actuales',
-      description: 'Currículum actualizado con las últimas tendencias'
+      title: "Enfoque práctico",
+      description: "Aprende construyendo proyectos reales que fortalecerán tu portafolio profesional."
+    },
+    {
+      icon: Code2,
+      title: "Mentores expertos",
+      description: "Instructores con experiencia real en la industria tecnológica."
     }
   ];
 
   return (
     <div className="min-h-screen">
-      {/* Hero Section with Animated Background */}
       <motion.section
         ref={heroRef}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 1.2, ease: "easeOut" }}
         className="relative min-h-screen flex items-center justify-center overflow-hidden"
-        style={{
-          background: 'linear-gradient(-45deg, #581C87, #4338CA, #2563EB, #7C3AED)',
-          backgroundSize: '400% 400%',
-          animation: 'gradient 15s ease infinite'
-        }}
       >
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(0,0,0,0)_0%,_rgba(0,0,0,0.4)_100%)]" />
+        {/* Fondo base */}
+        <div className="absolute inset-0" style={{ backgroundColor: '#1A0B2E' }} />
+        
+        {/* Gradiente animado */}
+        <div 
+          className="absolute inset-0" 
+          style={{
+            backgroundImage: 'linear-gradient(135deg, rgba(45,27,105,0.3) 0%, rgba(76,34,179,0.3) 25%, rgba(107,32,255,0.3) 50%, rgba(138,67,255,0.3) 75%, rgba(45,27,105,0.3) 100%)',
+            backgroundSize: '200% 200%',
+            animation: 'flowGradient 15s ease-in-out infinite'
+          }} 
+        />
+        
+        {/* Efectos de destellos */}
+        <div 
+          className="absolute inset-0" 
+          style={{
+            backgroundImage: `
+              radial-gradient(circle at 20% 30%, rgba(107, 32, 255, 0.3) 0%, transparent 8%), 
+              radial-gradient(circle at 80% 20%, rgba(138, 67, 255, 0.3) 0%, transparent 10%),
+              radial-gradient(circle at 40% 70%, rgba(76, 34, 179, 0.3) 0%, transparent 12%),
+              radial-gradient(circle at 70% 60%, rgba(107, 32, 255, 0.2) 0%, transparent 15%),
+              radial-gradient(circle at 10% 10%, rgba(138, 67, 255, 0.2) 0%, transparent 7%),
+              radial-gradient(circle at 90% 90%, rgba(76, 34, 179, 0.2) 0%, transparent 9%)
+            `,
+            opacity: 0.8
+          }} 
+        />
+        
+        {/* Partículas flotantes */}
+        <div className="absolute inset-0 overflow-hidden">
+          {[...Array(15)].map((_, i) => (
+            <div 
+              key={i}
+              className="absolute rounded-full"
+              style={{
+                backgroundColor: '#6B20FF',
+                width: `${2 + (i % 5)}px`,
+                height: `${2 + (i % 5)}px`,
+                top: `${10 + (i * 6) % 90}%`,
+                left: `${5 + (i * 7) % 90}%`,
+                opacity: 0.1 + (i % 5) * 0.05,
+                animation: `floatParticle ${15 + i % 10}s linear infinite`,
+                animationDelay: `${i * 0.7}s`
+              }}
+            />
+          ))}
+        </div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center z-10 mb-24">
           <motion.div 
@@ -161,7 +162,6 @@ export default function HomePage() {
 
         </div>
         
-        {/* Scroll Indicator - Positioned independently */}
         <motion.div 
           className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20"
           style={{ opacity: arrowOpacity }}
@@ -186,36 +186,35 @@ export default function HomePage() {
         </motion.div>
       </motion.section>
 
-      {/* Features Section */}
-      <section className="py-12 bg-[#1A0B2E]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ y: 50, opacity: 0 }}
-            animate={bootcampsInView ? { y: 0, opacity: 1 } : {}}
-            transition={{ duration: 0.6 }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16"
-          >
-            {features.map((feature, index) => (
-              <motion.div
-                key={index}
-                initial={{ y: 50, opacity: 0 }}
-                animate={bootcampsInView ? { y: 0, opacity: 1 } : {}}
-                transition={{ delay: index * 0.2 }}
-                className="bg-[#2D1B69] rounded-xl p-8 text-center"
-              >
-                <div className="inline-flex p-4 bg-[#6B20FF]/20 rounded-xl mb-6">
-                  <feature.icon className="h-8 w-8 text-[#6B20FF]" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-4">{feature.title}</h3>
-                <p className="text-gray-400">{feature.description}</p>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes flowGradient {
+          0% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+          100% {
+            background-position: 0% 50%;
+          }
+        }
+        
+        @keyframes floatParticle {
+          0% {
+            transform: translateY(0) translateX(0);
+            opacity: 0;
+          }
+          50% {
+            opacity: 0.3;
+          }
+          100% {
+            transform: translateY(-100vh) translateX(20px);
+            opacity: 0;
+          }
+        }
+      `}} />
 
-      {/* Bootcamps Section */}
-      <section className="py-12 bg-[#1A0B2E]" ref={bootcampsRef}>
+      <section className="py-12" style={{ backgroundColor: '#1A0B2E' }} ref={bootcampsRef}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ y: 50, opacity: 0 }}
@@ -241,7 +240,7 @@ export default function HomePage() {
             animate={bootcampsInView ? "visible" : "hidden"}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
-            {bootcamps.map((bootcamp, index) => (
+            {bootcamps.map((bootcamp) => (
               <motion.div 
                 key={bootcamp.id} 
                 variants={{
@@ -256,7 +255,8 @@ export default function HomePage() {
                   }
                 }}
                 whileHover={{ y: -10, transition: { duration: 0.3 } }}
-                className="bg-[#2D1B69] rounded-xl overflow-hidden hover:shadow-xl transition-shadow"
+                className="overflow-hidden hover:shadow-xl transition-shadow rounded-xl"
+                style={{ backgroundColor: '#2D1B69' }}
               >
                 <div className="relative h-48">
                   <img
@@ -264,7 +264,12 @@ export default function HomePage() {
                     alt={bootcamp.name}
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#2D1B69] to-transparent" />
+                  <div 
+                    className="absolute inset-0" 
+                    style={{ 
+                      backgroundImage: 'linear-gradient(to top, rgba(45, 27, 105, 1), transparent)'
+                    }} 
+                  />
                 </div>
                 
                 <div className="p-6">
@@ -308,6 +313,33 @@ export default function HomePage() {
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#6B20FF]" />
             </div>
           )}
+        </div>
+      </section>
+
+      <section className="py-12" style={{ backgroundColor: '#1A0B2E' }} ref={featuresRef}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ y: 50, opacity: 0 }}
+            animate={featuresInView ? { y: 0, opacity: 1 } : {}}
+            transition={{ duration: 0.6 }}
+            className="flex flex-wrap justify-center gap-6 mb-16"
+          >
+            {features.map((feature, index) => (
+              <motion.div
+                key={index}
+                initial={{ y: 50, opacity: 0 }}
+                animate={featuresInView ? { y: 0, opacity: 1 } : {}}
+                transition={{ delay: index * 0.2 }}
+                className="bg-[#2D1B69] rounded-xl p-8 text-center w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]"
+              >
+                <div className="inline-flex p-4 bg-[#6B20FF]/20 rounded-xl mb-6">
+                  <feature.icon className="h-8 w-8 text-[#6B20FF]" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-4">{feature.title}</h3>
+                <p className="text-gray-400">{feature.description}</p>
+              </motion.div>
+            ))}
+          </motion.div>
         </div>
       </section>
     </div>

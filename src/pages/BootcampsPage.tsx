@@ -23,7 +23,8 @@ const TAG_COLORS = {
   'web': 'bg-blue-500/20 text-blue-400',
   'data': 'bg-purple-500/20 text-purple-400',
   'mobile': 'bg-green-500/20 text-green-400',
-  'fundamentals': 'bg-yellow-500/20 text-yellow-400'
+  'devops': 'bg-yellow-500/20 text-yellow-400',
+  'cloud': 'bg-cyan-500/20 text-cyan-400'
 };
 
 export default function BootcampsPage() {
@@ -32,10 +33,10 @@ export default function BootcampsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [featuredBootcamps, setFeaturedBootcamps] = useState<Bootcamp[]>([]);
 
   useEffect(() => {
     fetchBootcamps();
+    
     if (user) {
       fetchInteractions();
     }
@@ -66,42 +67,85 @@ export default function BootcampsPage() {
 
   const fetchInteractions = async () => {
     try {
-      const { data: interactions, error } = await supabase
-        .rpc('get_bootcamp_interactions', {
-          interaction_type: 'view'
-        });
+      const { data, error } = await supabase
+        .from('bootcamp_interactions')
+        .select(`
+          bootcamp_id,
+          count
+        `)
+        .eq('interaction_type', 'view');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching interactions:', error);
+        return;
+      }
 
-      // Update bootcamps with interaction counts
-      setBootcamps(current => 
-        current.map(bootcamp => ({
+      // Aplicar conteo de interacciones a los bootcamps
+      const updatedBootcamps = bootcamps.map((bootcamp) => {
+        const interactionData = data?.find((i) => i.bootcamp_id === bootcamp.id);
+        return {
           ...bootcamp,
-          interaction_count: interactions.find(i => i.bootcamp_id === bootcamp.id)?.count || 0
-        }))
-      );
+          interaction_count: interactionData?.count || 0
+        };
+      });
 
-      // Update featured bootcamps based on interaction count
-      const sorted = [...bootcamps].sort((a, b) => 
-        (b.interaction_count || 0) - (a.interaction_count || 0)
-      );
-      setFeaturedBootcamps(sorted.slice(0, 3));
+      setBootcamps(updatedBootcamps);
     } catch (error) {
       console.error('Error fetching interactions:', error);
     }
   };
 
+  // Función para obtener el color basado en la popularidad (0-10 escala)
+  const getPopularityColor = (count: number): string => {
+    if (count >= 8) return 'text-green-500';
+    if (count >= 5) return 'text-yellow-500';
+    if (count >= 2) return 'text-orange-500';
+    return 'text-gray-400';
+  };
+
+  // Función para mostrar estrellas basadas en popularidad (0-5 escala)
+  const renderPopularityStars = (count: number = 0): JSX.Element[] => {
+    // Convertir el conteo a una escala de 0-5
+    const normalizedCount = Math.min(5, Math.max(0, Math.round(count / 2)));
+    
+    return Array.from({ length: 5 }).map((_, index: number) => (
+      <Star
+        key={index}
+        size={16}
+        className={`${index < normalizedCount ? getPopularityColor(count) : 'text-gray-400'}`}
+        fill={index < normalizedCount ? 'currentColor' : 'none'}
+      />
+    ));
+  };
+
   const fetchBootcamps = async () => {
     try {
+      setLoading(true);
+      // Usamos el método tradicional con mejor manejo de errores
       const { data, error } = await supabase
         .from('bootcamps')
         .select('*')
         .eq('is_active', true);
 
-      if (error) throw error;
-      setBootcamps(data || []);
+      if (error) {
+        console.error('Error fetching bootcamps:', error);
+        
+        // Manejo específico para el error de rol "admin"
+        if (error.message && error.message.includes('role "admin" does not exist')) {
+          console.warn('Error de permisos en la base de datos - rol admin no existe');
+          // No hacemos nada más, simplemente loggeamos el error
+        }
+        return;
+      }
+      
+      // Asegurarnos de que data sea un array antes de asignarlo
+      if (Array.isArray(data)) {
+        setBootcamps(data);
+      } else {
+        setBootcamps([]);
+      }
     } catch (error) {
-      console.error('Error fetching bootcamps:', error);
+      console.error('Error inesperado en fetchBootcamps:', error);
     } finally {
       setLoading(false);
     }
@@ -235,7 +279,7 @@ export default function BootcampsPage() {
                     </span>
                     {bootcamp.interaction_count && bootcamp.interaction_count > 5 && (
                       <span className="ml-2 inline-flex items-center text-yellow-400">
-                        <Star className="w-4 h-4 mr-1" />
+                        {renderPopularityStars(bootcamp.interaction_count)}
                         Destacado
                       </span>
                     )}

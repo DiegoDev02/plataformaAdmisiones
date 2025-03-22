@@ -11,8 +11,8 @@ export default function UserProfile() {
   const { user } = useAuth();
   const { addToast } = useToast();
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const isVerified = true; // This should come from your user data
-  const userRole = user?.role || 'student'; // This should come from your user data
+  
+  // Definimos enrollments para los bootcamps del usuario
   const enrollments = [
     {
       id: 1,
@@ -34,12 +34,22 @@ export default function UserProfile() {
         >
           <div className="flex items-start justify-between">
             <div className="flex items-center space-x-4">
-              <div className="w-20 h-20 bg-[#1A0B2E] rounded-full flex items-center justify-center">
-                <User className="w-10 h-10 text-white" />
+              <div className="w-20 h-20 bg-[#1A0B2E] rounded-full flex items-center justify-center overflow-hidden">
+                {user?.avatar_url ? (
+                  <img 
+                    src={user.avatar_url} 
+                    alt="Avatar" 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User className="w-10 h-10 text-white" />
+                )}
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                  Juan Antonio
+                  {(user?.first_name && user?.last_name) 
+                    ? `${user.first_name} ${user.last_name}`
+                    : "Usuario"}
                   {user?.email_confirmed_at && (
                     <BadgeCheck className="w-6 h-6 text-[#31D071]" />
                   )}

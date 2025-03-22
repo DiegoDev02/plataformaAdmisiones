@@ -4,8 +4,24 @@ import PhoneInput from 'react-phone-input-2';
 import { Globe } from 'lucide-react';
 import 'react-phone-input-2/lib/style.css';
 
+interface FormData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  country: string;
+  idDocument: FileList;
+  techExperience: string;
+  interestedInTechJob: string;
+  isWorking: string;
+  jobTitle?: string;
+  careerGoals: string;
+  linkedinProfile?: string;
+  recommendationLetter?: FileList;
+}
+
 interface AICEnrollmentFormProps {
-  onSubmit: (data: any) => void;
+  onSubmit: (data: FormData) => void;
   onBack: () => void;
 }
 

@@ -4,16 +4,24 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/ui/Toaster';
+import fondoRegistro from '../assets/fondoregistro.png';
+import logoKodigo from '../assets/LogoKodigo.png';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const { register, handleSubmit, formState: { errors } } = useForm();
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { signIn } = useAuth();
   const { addToast } = useToast();
   const from = location.state?.from?.pathname || '/profile';
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
 
   const onSubmit = async (data: any) => {
     try {
@@ -35,7 +43,7 @@ export default function LoginPage() {
       {/* Left Side - Form */}
       <div className="bg-[#6B20FF] p-8 flex items-center justify-center">
         <div className="w-full max-w-md">
-          <h1 className="text-5xl font-bold text-[#00FFF0] mb-4">
+          <h1 className="text-5xl font-bold text-white mb-4">
             Iniciar sesión
           </h1>
           <p className="text-white/80 mb-12">
@@ -61,13 +69,23 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-white mb-2">Contraseña</label>
-              <input
-                type="password"
-                {...register('password', { required: true })}
-                className="w-full p-4 bg-white/10 text-white rounded-lg border border-white/20 focus:outline-none focus:border-[#00FFF0] transition-colors"
-                placeholder="••••••••"
-                autoComplete="current-password"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  {...register('password', { required: true })}
+                  className="w-full p-4 bg-white/10 text-white rounded-lg border border-white/20 focus:outline-none focus:border-[#00FFF0] transition-colors"
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                />
+                <button 
+                  type="button"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white"
+                  onClick={togglePasswordVisibility}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
               {errors.password && (
                 <span className="text-red-300 text-sm mt-1 block">
                   La contraseña es requerida
@@ -85,7 +103,7 @@ export default function LoginPage() {
               <label className="flex items-center">
                 <input
                   type="checkbox"
-                  className="w-4 h-4 rounded border-white/20 bg-white/10 text-[#00FFF0] focus:ring-[#00FFF0]"
+                  className="w-4 h-4 rounded-full border-white/20 bg-white/10 text-[#6B20FF] focus:ring-[#00FFF0] focus:ring-offset-0"
                 />
                 <span className="ml-2 text-white">Recuérdame</span>
               </label>
@@ -101,7 +119,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-[#1A0A33] text-white rounded-lg py-4 font-medium hover:bg-[#1A0A33]/80 transition-colors disabled:opacity-50"
+              className="block max-w-xs mx-auto bg-[#1A0A33] text-white rounded-2xl py-3 px-8 font-medium hover:bg-[#1A0A33]/80 transition-colors disabled:opacity-50"
             >
               {isLoading ? 'Cargando...' : 'Iniciar sesión'}
             </button>
@@ -113,12 +131,14 @@ export default function LoginPage() {
       <div 
         className="hidden lg:flex flex-col items-center justify-center p-8 relative overflow-hidden"
         style={{
-          background: 'linear-gradient(135deg, #6B20FF 0%, #00FFF0 100%)',
-          backgroundSize: '400% 400%',
-          animation: 'gradient 15s ease infinite'
+          backgroundImage: `url(${fondoRegistro})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
         }}
       >
-        <img src="/kodigo-logo.svg" alt="Kodigo" className="h-8 mb-12" />
+        <div className="w-[180px] h-[60px] mb-8">
+          <img src={logoKodigo} alt="Kodigo" className="w-full h-full object-contain" />
+        </div>
         
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
@@ -130,14 +150,12 @@ export default function LoginPage() {
         </motion.h2>
 
         <div className="text-center">
-          <p className="text-white/80 mb-2">¿Aún no tienes una cuenta?</p>
+          <p className="text-white/80 mb-4">¿Aún no tienes una cuenta?</p>
           <Link
             to="/register"
-            className="text-[#6B20FF] font-medium hover:text-[#6B20FF] transition-all relative group"
+            className="inline-block bg-white text-[#6B20FF] font-medium py-2 px-6 rounded-lg hover:bg-opacity-90 transition-all transform hover:scale-105"
           >
-            <span className="relative z-10">crear cuenta</span>
-            <span className="absolute inset-0 bg-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity" />
-            <span className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity blur-lg bg-[#6B20FF]" />
+            Crear cuenta
           </Link>
         </div>
       </div>

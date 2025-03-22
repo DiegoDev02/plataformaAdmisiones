@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Code2, Menu, X, User } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import UserMenu from './UserMenu';
@@ -16,8 +16,11 @@ export default function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex">
             <Link to="/" className="flex items-center">
-              <Code2 className="h-8 w-8 text-white" />
-              <span className="ml-2 text-xl font-bold text-white">Kodigo</span>
+              <img 
+                src="/assets/LogoKodigo.png" 
+                alt="Kodigo Logo" 
+                className="h-8 w-auto" 
+              />
             </Link>
           </div>
 

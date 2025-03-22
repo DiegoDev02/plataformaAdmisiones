@@ -8,6 +8,8 @@ import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 import { useToast } from '../components/ui/Toaster';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
+import logoKodigo from '../assets/LogoKodigo.png';
+import fondoRegistro from '../assets/fondoregistro.png';
 
 export default function RegisterPage() {
   const { register, handleSubmit, formState: { errors }, watch } = useForm();
@@ -53,20 +55,21 @@ export default function RegisterPage() {
       <div 
         className="relative hidden lg:flex flex-col justify-between p-12"
         style={{
-          background: 'linear-gradient(135deg, #6B20FF 0%, #00FFF0 100%)',
-          backgroundSize: '400% 400%',
-          animation: 'gradient 15s ease infinite'
+          backgroundImage: `url(${fondoRegistro})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
         }}
       >
-        <div>
-          <img src="/kodigo-logo.svg" alt="Kodigo" className="h-8" />
-        </div>
-        <div className="space-y-6">
+        <div></div>
+        <div className="flex flex-col items-start">
+          <div className="w-[180px] h-[60px] mb-8">
+            <img src={logoKodigo} alt="Kodigo" className="w-full h-full object-contain" />
+          </div>
           <motion.h1 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-7xl font-bold text-white"
+            className="text-8xl font-bold text-white"
           >
             ¡Hey!
           </motion.h1>
@@ -74,7 +77,7 @@ export default function RegisterPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-3xl text-white/90"
+            className="text-4xl text-white/90 leading-tight mt-4"
           >
             Inicia tu carrera<br />con nosotros
           </motion.p>

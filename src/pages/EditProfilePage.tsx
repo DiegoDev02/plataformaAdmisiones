@@ -2,10 +2,13 @@ import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { User, Camera, Mail, Phone, ArrowLeft } from 'lucide-react';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, FormEvent, ChangeEvent } from 'react';
 import { supabase } from '../lib/supabase';
 import SuccessModal from '../components/SuccessModal';
-import { useEffect } from 'react';
+
+interface ProfileError {
+  message: string;
+}
 
 export default function EditProfilePage() {
   const [error, setError] = useState('');
@@ -21,56 +24,61 @@ export default function EditProfilePage() {
 
   useEffect(() => {
     if (user) {
+      console.log('User data in EditProfilePage:', user);
+      
+      const fetchProfile = async () => {
+        try {
+          if (!user?.id) {
+            setError('No se ha proporcionado ID de usuario');
+            return;
+          }
+
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('first_name, last_name, phone')
+            .eq('id', user.id as string)
+            .maybeSingle();
+
+          if (error) throw error;
+
+          if (!data) {
+            // Create new profile if none exists
+            const { error: insertError } = await supabase
+              .from('profiles')
+              .insert({
+                id: user.id,
+                first_name: '',
+                last_name: '',
+                phone: ''
+              } as any);
+
+            if (insertError) throw insertError;
+
+            setFormData({ firstName: '', lastName: '', phone: '' });
+            return;
+          }
+
+          if ('first_name' in data && 'last_name' in data && 'phone' in data) {
+            setFormData({
+              firstName: data.first_name || '',
+              lastName: data.last_name || '',
+              phone: data.phone || ''
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching profile:', error);
+          setError('Error al cargar el perfil');
+        }
+      };
+      
       fetchProfile();
     }
   }, [user]);
 
-  const fetchProfile = async () => {
-    try {
-      if (!user?.id) {
-        setError('No se ha proporcionado ID de usuario');
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('first_name, last_name, phone')
-        .eq('id', user?.id)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (!data) {
-        // Create new profile if none exists
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert([{ 
-            id: user.id,
-            first_name: '',
-            last_name: '',
-            phone: ''
-          }]);
-
-        if (insertError) throw insertError;
-
-        setFormData({ firstName: '', lastName: '', phone: '' });
-        return;
-      }
-
-      setFormData({
-        firstName: data.first_name || '',
-        lastName: data.last_name || '',
-        phone: data.phone || ''
-      });
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-      setError('Error al cargar el perfil');
-    }
-  };
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -81,7 +89,7 @@ export default function EditProfilePage() {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -89,41 +97,75 @@ export default function EditProfilePage() {
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
 
     try {
+      // Actualizar el perfil básico
       const updates = {
         id: user?.id,
         first_name: formData.firstName,
         last_name: formData.lastName,
         phone: formData.phone
-      };
+      } as any;
 
-      const { error } = await supabase
+      const { error: profileError } = await supabase
         .from('profiles')
         .update(updates)
-        .eq('id', user?.id);
+        .eq('id', user?.id as string);
 
-      if (error) throw error;
+      if (profileError) throw profileError;
 
-      // Handle image upload if a new image was selected
+      // Manejar la subida de imagen si se seleccionó una nueva
       if (fileInputRef.current?.files?.length) {
         const file = fileInputRef.current.files[0];
         const fileExt = file.name.split('.').pop();
-        const filePath = `${user?.id}/profile.${fileExt}`;
+        const fileName = `avatar-${Date.now()}.${fileExt}`;
+        const filePath = `${user?.id}/${fileName}`;
 
+        // Primero, eliminamos cualquier avatar existente
+        const { data: existingFiles } = await supabase.storage
+          .from('avatars')
+          .list(user?.id?.toString() || '');
+
+        if (existingFiles && existingFiles.length > 0) {
+          await supabase.storage
+            .from('avatars')
+            .remove(existingFiles.map(f => `${user?.id}/${f.name}`));
+        }
+
+        // Subimos el nuevo avatar
         const { error: uploadError } = await supabase.storage
           .from('avatars')
           .upload(filePath, file, { upsert: true });
 
         if (uploadError) throw uploadError;
+
+        // Obtenemos la URL pública
+        const { data: publicUrlData } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+        // Actualizamos el perfil con la URL de la imagen
+        if (publicUrlData) {
+          const { error: avatarUpdateError } = await supabase
+            .from('profiles')
+            .update({ 
+              avatar_url: publicUrlData.publicUrl 
+            } as any)
+            .eq('id', user?.id as string);
+
+          if (avatarUpdateError) throw avatarUpdateError;
+        }
       }
 
       setShowSuccessModal(true);
     } catch (error) {
       console.error('Error updating profile:', error);
+      const errorMessage = error as ProfileError;
+      setError(errorMessage.message || 'Error al actualizar el perfil');
     } finally {
       setLoading(false);
     }

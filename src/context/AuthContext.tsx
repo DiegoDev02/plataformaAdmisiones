@@ -7,6 +7,9 @@ interface AuthUser extends User {
   firstName?: string;
   lastName?: string;
   phone?: string;
+  first_name?: string;
+  last_name?: string;
+  avatar_url?: string;
 }
 
 interface AuthContextType {
@@ -77,13 +80,149 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loadCachedSession();
   }, []);
 
+  // Set up automatic session refresh
+  useEffect(() => {
+    if (session && !refreshTimer) {
+      // Calculate time to refresh (5 minutes before expiry)
+      const expiryTime = new Date(session.expires_at || 0).getTime();
+      const now = new Date().getTime();
+      const timeToRefresh = Math.max(0, expiryTime - now - 5 * 60 * 1000);
+      
+      // Add a minimum delay to prevent excessive refresh attempts
+      const minimumDelay = 30000; // 30 seconds minimum between refresh attempts
+      const actualDelay = Math.max(timeToRefresh, minimumDelay);
+      
+      const timer = setTimeout(() => {
+        refreshSession();
+      }, actualDelay);
+      
+      setRefreshTimer(timer);
+    }
+    
+    return () => {
+      if (refreshTimer) {
+        clearTimeout(refreshTimer);
+        setRefreshTimer(null);
+      }
+    };
+  }, [session, refreshTimer]);
+
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        setLoading(true);
+        
+        // Get initial session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) throw sessionError;
+        
+        if (session?.user) {
+          // No es necesario realizar una consulta de perfil aquí si no se está utilizando correctamente
+          setUser({
+            ...session.user,
+            role: session.user.app_metadata?.role || 'user'
+          });
+          setSession(session);
+          setIsAdmin(session.user.app_metadata?.role === 'admin');
+          
+          // Cache in localStorage
+          localStorage.setItem(LOCAL_STORAGE_KEYS.AUTH_USER, JSON.stringify({
+            ...session.user,
+            role: session.user.app_metadata?.role || 'user'
+          }));
+          localStorage.setItem(LOCAL_STORAGE_KEYS.AUTH_SESSION, JSON.stringify(session));
+        }
+      } catch (err) {
+        console.error('Auth initialization error:', err);
+        setError(err instanceof AuthError ? err.message : 'Error initializing auth');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth event:', event, session?.user?.id);
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          try {
+            // No es necesario realizar una consulta de perfil aquí si no se está utilizando correctamente
+            const userData = {
+              ...session.user,
+              role: session.user.app_metadata?.role || 'user'
+            };
+              
+            setUser(userData);
+            setSession(session);
+            setIsAdmin(userData.role === 'admin');
+            
+            // Cache in localStorage
+            localStorage.setItem(LOCAL_STORAGE_KEYS.AUTH_USER, JSON.stringify(userData));
+            localStorage.setItem(LOCAL_STORAGE_KEYS.AUTH_SESSION, JSON.stringify(session));
+          } catch (err) {
+            console.error('Error setting user data:', err);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setSession(null);
+          setIsAdmin(false);
+          localStorage.removeItem(LOCAL_STORAGE_KEYS.AUTH_USER);
+          localStorage.removeItem(LOCAL_STORAGE_KEYS.AUTH_SESSION);
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          setSession(session);
+          localStorage.setItem(LOCAL_STORAGE_KEYS.AUTH_SESSION, JSON.stringify(session));
+        }
+        
+        setLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   const refreshSession = async () => {
     try {
-      setError(null);
+      // Skip refresh if there's no existing session
+      if (!session) {
+        console.log('No active session to refresh');
+        return;
+      }
+
       const { data, error } = await supabase.auth.refreshSession();
       
       if (error) {
         console.error('Error refreshing session:', error);
+        
+        // Handle rate limit specifically
+        if (error.status === 429) {
+          console.log('Rate limit hit, scheduling retry with backoff');
+          // Clear existing timer if any
+          if (refreshTimer) {
+            clearTimeout(refreshTimer);
+            setRefreshTimer(null);
+          }
+          // Schedule another attempt with backoff
+          const backoffTimer = setTimeout(() => {
+            refreshSession();
+          }, 60000); // 1 minute delay
+          
+          setRefreshTimer(backoffTimer);
+          return;
+        }
+        
+        // For session missing errors, clear state
+        if (error.name === 'AuthSessionMissingError') {
+          setUser(null);
+          setSession(null);
+          setIsAdmin(false);
+          localStorage.removeItem(LOCAL_STORAGE_KEYS.AUTH_USER);
+          localStorage.removeItem(LOCAL_STORAGE_KEYS.AUTH_SESSION);
+          return;
+        }
+        
         throw error;
       }
       
@@ -104,117 +243,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (err) {
       console.error('Session refresh failed:', err);
-      // If refresh fails, sign out
-      await signOut();
+      // Limpiar la sesión
+      setUser(null);
+      setSession(null);
+      setIsAdmin(false);
+      localStorage.removeItem(LOCAL_STORAGE_KEYS.AUTH_USER);
+      localStorage.removeItem(LOCAL_STORAGE_KEYS.AUTH_SESSION);
     }
   };
-
-  // Set up automatic session refresh
-  useEffect(() => {
-    if (session && !refreshTimer) {
-      // Calculate time to refresh (5 minutes before expiry)
-      const expiryTime = new Date(session.expires_at || 0).getTime();
-      const now = new Date().getTime();
-      const timeToRefresh = Math.max(0, expiryTime - now - 5 * 60 * 1000);
-      
-      const timer = setTimeout(refreshSession, timeToRefresh);
-      setRefreshTimer(timer);
-    }
-    
-    return () => {
-      if (refreshTimer) {
-        clearTimeout(refreshTimer);
-        setRefreshTimer(null);
-      }
-    };
-  }, [session]);
-
-  useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        setLoading(true);
-        
-        // Get initial session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) throw sessionError;
-        
-        if (session?.user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-            
-          const userData = {
-            ...session.user,
-            role: session.user.app_metadata?.role || 'user',
-            ...profile
-          };
-            
-          setUser(userData);
-          setSession(session);
-          setIsAdmin(userData.role === 'admin');
-          
-          // Cache in localStorage
-          localStorage.setItem(LOCAL_STORAGE_KEYS.AUTH_USER, JSON.stringify(userData));
-          localStorage.setItem(LOCAL_STORAGE_KEYS.AUTH_SESSION, JSON.stringify(session));
-        }
-      } catch (err) {
-        console.error('Auth initialization error:', err);
-        setError(err instanceof AuthError ? err.message : 'Error initializing auth');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initializeAuth();
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth event:', event, session?.user?.id);
-        
-        if (event === 'SIGNED_IN' && session?.user) {
-          try {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-              
-            const userData = {
-              ...session.user,
-              role: session.user.app_metadata?.role || 'user',
-              ...profile
-            };
-              
-            setUser(userData);
-            setSession(session);
-            setIsAdmin(userData.role === 'admin');
-            
-            // Cache in localStorage
-            localStorage.setItem(LOCAL_STORAGE_KEYS.AUTH_USER, JSON.stringify(userData));
-            localStorage.setItem(LOCAL_STORAGE_KEYS.AUTH_SESSION, JSON.stringify(session));
-          } catch (err) {
-            console.error('Error fetching user profile:', err);
-          }
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setSession(null);
-          setIsAdmin(false);
-          localStorage.removeItem(LOCAL_STORAGE_KEYS.AUTH_USER);
-          localStorage.removeItem(LOCAL_STORAGE_KEYS.AUTH_SESSION);
-        } else if (event === 'SESSION_UPDATED' && session) {
-          setSession(session);
-          localStorage.setItem(LOCAL_STORAGE_KEYS.AUTH_SESSION, JSON.stringify(session));
-        }
-        
-        setLoading(false);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   const value = {
     user,
@@ -228,15 +264,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       
       try {
-        const { data, error } = await authOperation(() => 
-          supabase.auth.signInWithPassword({ email, password })
-        );
+        // Usar directamente supabase.auth para evitar problemas de tipos con authOperation
+        const { data, error } = await supabase.auth.signInWithPassword({ 
+          email, 
+          password 
+        });
         
         if (error) {
-          if (error.includes('Database error querying schema')) {
+          if (error.message.includes('Database error querying schema')) {
             throw new Error('Error de conexión. Por favor intenta de nuevo en unos minutos.');
           }
-          throw new Error(error);
+          throw new Error(error.message);
         }
         
         if (!data?.user) {
@@ -245,16 +283,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // No need to fetch profile or set state as the onAuthStateChange will handle it
       } catch (error) {
-        console.error('Sign in error:', error);
-        setError(
-          error instanceof Error
-            ? error.message === 'Invalid login credentials'
-              ? 'Credenciales inválidas'
-              : error.message === 'Database error querying schema'
-              ? 'Error de conexión. Por favor intenta de nuevo en unos minutos.'
-              : error.message
-            : 'Error al iniciar sesión'
-        );
+        console.error('Sign in error:', error instanceof Error ? error.message : error);
+        const errorMessage = error instanceof Error 
+          ? (
+              error.message === 'Invalid login credentials'
+                ? 'Credenciales inválidas'
+                : error.message === 'Database error querying schema'
+                  ? 'Error de conexión. Por favor intenta de nuevo en unos minutos.'
+                  : error.message
+            )
+          : 'Error al iniciar sesión';
+        
+        setError(errorMessage);
         setLoading(false);
         throw error;
       }
@@ -268,12 +308,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             password: data.password,
             options: {
               data: {
+                role: 'user', // Default role for new users
                 first_name: data.firstName,
                 last_name: data.lastName,
                 phone: data.phone,
-                country: data.country,
-                role: 'user' // Default role for new users
-              }
+                country: data.country
+              },
+              emailRedirectTo: `${window.location.origin}/login`
             }
           })
         );
